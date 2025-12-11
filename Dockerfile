@@ -6,11 +6,15 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies (including dev for build)
+RUN npm ci
 
-# Copy built files
-COPY dist/ ./dist/
+# Copy source files
+COPY src/ ./src/
+COPY tsconfig.json ./
+
+# Build TypeScript
+RUN npm run build
 
 # Set user for security
 USER node

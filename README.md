@@ -58,6 +58,16 @@ ML-KEM-768 (Kyber) + ChaCha20-Poly1305
 
 Even if one algorithm is broken, the other remains secure.
 
+### Why Post-Quantum Now?
+
+| Timeline | Threat |
+|----------|--------|
+| **2024-2030** | "Harvest now, decrypt later" attacks - adversaries collecting encrypted data today |
+| **2030-2035** | Early cryptographically-relevant quantum computers expected |
+| **2035+** | Current RSA/ECC encryption potentially broken |
+
+Your browser credentials stored today could be decrypted in 10 years. This fork protects against that future threat **now**.
+
 ---
 
 ## Installation

@@ -1,0 +1,47 @@
+# Smithery configuration for chrome-mcp-secure
+# https://smithery.ai/docs
+
+build:
+  dockerBuildPath: .
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      chromeHost:
+        type: string
+        default: "localhost"
+        description: "Chrome DevTools Protocol host"
+      chromePort:
+        type: number
+        default: 9222
+        description: "Chrome DevTools Protocol port"
+      encryptionKey:
+        type: string
+        description: "(optional) Base64-encoded 32-byte encryption key for credential vault"
+      usePostQuantum:
+        type: boolean
+        default: true
+        description: "Enable post-quantum encryption (ML-KEM-768 + ChaCha20-Poly1305)"
+      credentialTtl:
+        type: number
+        default: 300000
+        description: "Credential time-to-live in memory (ms, default 5 minutes)"
+      auditLogging:
+        type: boolean
+        default: true
+        description: "Enable tamper-evident audit logging"
+  commandFunction: |
+    (config) => ({
+      command: 'node',
+      args: ['dist/index.js'],
+      env: {
+        CHROME_HOST: config.chromeHost || 'localhost',
+        CHROME_PORT: String(config.chromePort || 9222),
+        CHROME_MCP_ENCRYPTION_KEY: config.encryptionKey || '',
+        CHROME_MCP_USE_POST_QUANTUM: String(config.usePostQuantum !== false),
+        CHROME_MCP_CREDENTIAL_TTL: String(config.credentialTtl || 300000),
+        AUDIT_LOGGING: String(config.auditLogging !== false)
+      }
+    })

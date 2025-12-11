@@ -12,6 +12,8 @@
 
 [Security Features](#security-features) • [Installation](#installation) • [Quick Start](#quick-start) • [Tools](#available-tools) • [Documentation](./SECURITY.md)
 
+`#anthropic` `#mcp` `#claude` `#mcp-server` `#ai-agent` `#chrome` `#browser-automation` `#devtools` `#security` `#post-quantum` `#encryption` `#credential-vault` `#pantheon-security`
+
 </div>
 
 > **Security-hardened fork** of [lxe/chrome-mcp](https://github.com/lxe/chrome-mcp)

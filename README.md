@@ -4,6 +4,7 @@
 
 **Chrome DevTools Protocol automation for AI agents - with enterprise-grade security**
 
+[![Version](https://img.shields.io/badge/Version-2.2.1-brightgreen.svg)](./CHANGELOG.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-2025-green.svg)](https://modelcontextprotocol.io/)
 [![Security](https://img.shields.io/badge/Security-Hardened-red.svg)](./SECURITY.md)
@@ -52,6 +53,8 @@ This isn't just a security enhancement - it's a **reliable workhorse** for AI-as
 
 ## Security Features
 
+### Core Security (v2.1.0)
+
 | Feature | Description |
 |---------|-------------|
 | **Post-Quantum Encryption** | ML-KEM-768 + ChaCha20-Poly1305 hybrid |
@@ -62,6 +65,18 @@ This isn't just a security enhancement - it's a **reliable workhorse** for AI-as
 | **Log Sanitization** | Credentials masked in all output |
 | **Rate Limiting** | 100 requests per minute per operation |
 | **Input Validation** | CSS selector sanitization, URL validation |
+
+### Advanced Security Modules (v2.2.0+)
+
+| Module | Description |
+|--------|-------------|
+| **Secrets Scanner** | Detects 25+ credential patterns (AWS, GitHub, Slack, OpenAI keys, private keys, JWTs, credit cards, SSNs) |
+| **Response Validator** | Prompt injection detection (15 patterns), suspicious URL blocking, encoded payload detection |
+| **Session Manager** | Credential session lifecycle with 8h max lifetime and 30min inactivity timeout |
+| **MCP Authentication** | Token-based auth with auto-generation, SHA256 hashing, brute-force lockout |
+| **Certificate Pinning** | SPKI-style pinning for Google, GitHub, Microsoft, Anthropic, OpenAI domains |
+| **Screenshot Redaction** | Auto-redacts password fields, credit cards, CVV, SSN, API keys in screenshots |
+| **Cross-Platform Permissions** | Secure file permissions on Linux, macOS, and Windows (icacls) |
 
 ### Post-Quantum Ready
 
@@ -347,21 +362,34 @@ See [SECURITY.md](./SECURITY.md) for complete configuration reference.
 ```
 chrome-mcp-secure/
 ├── src/
-│   ├── index.ts           # MCP server entry point
-│   ├── cdp-client.ts      # Persistent CDP WebSocket client
-│   ├── tools.ts           # Browser automation tools
-│   ├── credential-vault.ts # Encrypted credential storage
-│   ├── credential-tools.ts # Credential MCP tools
-│   ├── crypto.ts          # Post-quantum encryption
-│   ├── secure-memory.ts   # Memory protection utilities
-│   ├── security.ts        # Input validation, rate limiting
-│   ├── logger.ts          # Logging with auto-masking
-│   └── errors.ts          # Typed error classes
-├── dist/                  # Compiled JavaScript
-├── setup.sh               # Linux/macOS setup
-├── setup.ps1              # Windows setup
-├── SECURITY.md            # Security documentation
-├── CLAUDE.md              # Claude Code integration guide
+│   ├── index.ts              # MCP server entry point
+│   ├── cdp-client.ts         # Persistent CDP WebSocket client
+│   ├── tools.ts              # Browser automation tools
+│   │
+│   │── # Core Security (v2.1.0)
+│   ├── credential-vault.ts   # Encrypted credential storage
+│   ├── credential-tools.ts   # Credential MCP tools
+│   ├── crypto.ts             # Post-quantum encryption (ML-KEM-768 + ChaCha20)
+│   ├── secure-memory.ts      # Memory protection utilities
+│   ├── security.ts           # Input validation, rate limiting
+│   ├── logger.ts             # Logging with auto-masking
+│   ├── errors.ts             # Typed error classes
+│   │
+│   │── # Advanced Security Modules (v2.2.0+)
+│   ├── secrets-scanner.ts    # Credential leak detection (25+ patterns)
+│   ├── response-validator.ts # Prompt injection detection
+│   ├── session-manager.ts    # Session lifecycle management
+│   ├── mcp-auth.ts           # Token-based MCP authentication
+│   ├── cert-pinning.ts       # Certificate pinning for sensitive domains
+│   ├── screenshot-redaction.ts # Auto-redact sensitive fields
+│   └── file-permissions.ts   # Cross-platform secure file permissions
+│
+├── dist/                     # Compiled JavaScript
+├── setup.sh                  # Linux/macOS setup
+├── setup.ps1                 # Windows setup
+├── SECURITY.md               # Security documentation
+├── CHANGELOG.md              # Version history
+├── CLAUDE.md                 # Claude Code integration guide
 └── README.md
 ```
 
@@ -380,6 +408,33 @@ chrome-mcp-secure/
 | **Audit logging** | ❌ | ✅ |
 | **Auto log masking** | ❌ | ✅ |
 | **Profile isolation** | ❌ | ✅ |
+| **Secrets scanner** | ❌ | ✅ |
+| **Prompt injection detection** | ❌ | ✅ |
+| **Session management** | ❌ | ✅ |
+| **MCP authentication** | ❌ | ✅ |
+| **Certificate pinning** | ❌ | ✅ |
+| **Screenshot redaction** | ❌ | ✅ |
+
+---
+
+## What's New in v2.2.x
+
+### v2.2.1 - Cross-Platform File Permissions
+- All file operations use centralized `file-permissions.ts`
+- Proper Windows ACL support via `icacls`
+- Consistent 0o700/0o600 permissions on Unix
+
+### v2.2.0 - Advanced Security Modules
+Six new security modules totaling **3,000+ lines** of security hardening:
+
+1. **Secrets Scanner** - Detects leaked credentials in page content using patterns from TruffleHog, GitLeaks, and MEDUSA
+2. **Response Validator** - Blocks prompt injection attacks in scraped content
+3. **Session Manager** - Auto-expires credential sessions after configurable timeouts
+4. **MCP Authentication** - Protects the MCP server itself with token-based auth
+5. **Certificate Pinning** - Validates TLS certificates for sensitive domains
+6. **Screenshot Redaction** - Overlays sensitive fields before screenshots
+
+See [CHANGELOG.md](./CHANGELOG.md) for full version history.
 
 ---
 

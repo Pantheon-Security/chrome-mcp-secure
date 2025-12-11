@@ -1,0 +1,62 @@
+{
+  "name": "@pansec/chrome-mcp-secure",
+  "version": "2.1.0",
+  "description": "Security-hardened Chrome DevTools Protocol MCP server with post-quantum encryption and secure credential vault",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "chrome-mcp-secure": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "chrome",
+    "devtools",
+    "cdp",
+    "browser-automation",
+    "post-quantum",
+    "encryption",
+    "credential-vault",
+    "security",
+    "claude",
+    "anthropic"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Pantheon-Security/chrome-mcp-secure.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Pantheon-Security/chrome-mcp-secure/issues"
+  },
+  "homepage": "https://github.com/Pantheon-Security/chrome-mcp-secure#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@noble/post-quantum": "^0.2.1",
+    "ws": "^8.18.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Pantheon Security (https://pantheonsecurity.io)",
+  "contributors": [
+    {
+      "name": "lxe",
+      "url": "https://github.com/lxe/chrome-mcp"
+    }
+  ],
+  "license": "MIT"
+}

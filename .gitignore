@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data directories (auth & credentials)
+.chrome-mcp/
+.chrome-mcp-profile/
+chrome_profile/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Screenshots and temp
+screenshots/
+*.tar.gz
+
+# Local notes and internal docs
+mcp-add-command.txt
+golive.md
+.obsidian/
+
+# Runtime files
+.chrome-mcp.pid
+.mcp.json
+
+# Claude local config
+.claude/

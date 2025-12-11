@@ -20,6 +20,7 @@ import crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
+import { mkdirSecure, writeFileSecure, PERMISSION_MODES } from "./file-permissions.js";
 
 /**
  * Detect the current operating system
@@ -37,54 +38,20 @@ export function getOS(): "linux" | "macos" | "windows" | "unknown" {
  * Create a directory with secure permissions (cross-platform)
  * On Unix: mode 0700 (owner only)
  * On Windows: restricts ACL to current user
+ * @deprecated Use mkdirSecure from file-permissions.ts instead
  */
 export function secureCreateDir(dirPath: string): void {
-  const os = getOS();
-
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true, mode: 0o700 });
-  }
-
-  // On Windows, try to set ACL (best effort)
-  if (os === "windows") {
-    try {
-      // Use icacls to restrict access to current user
-      execSync(`icacls "${dirPath}" /inheritance:r /grant:r "%USERNAME%:F"`, {
-        stdio: "ignore",
-        windowsHide: true,
-      });
-    } catch {
-      // Ignore errors - Windows permissions are complex
-    }
-  }
+  mkdirSecure(dirPath, PERMISSION_MODES.OWNER_FULL);
 }
 
 /**
  * Write a file with secure permissions (cross-platform)
  * On Unix: mode 0600 (owner read/write only)
  * On Windows: restricts ACL to current user
+ * @deprecated Use writeFileSecure from file-permissions.ts instead
  */
 export function secureWriteFile(filePath: string, content: string): void {
-  const os = getOS();
-  const dir = path.dirname(filePath);
-
-  // Ensure directory exists with secure permissions
-  secureCreateDir(dir);
-
-  // Write file
-  fs.writeFileSync(filePath, content, { mode: 0o600 });
-
-  // On Windows, try to set ACL (best effort)
-  if (os === "windows") {
-    try {
-      execSync(`icacls "${filePath}" /inheritance:r /grant:r "%USERNAME%:F"`, {
-        stdio: "ignore",
-        windowsHide: true,
-      });
-    } catch {
-      // Ignore errors
-    }
-  }
+  writeFileSecure(filePath, content, PERMISSION_MODES.OWNER_READ_WRITE);
 }
 
 /**

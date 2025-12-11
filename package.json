@@ -1,6 +1,6 @@
 {
   "name": "@pansec/chrome-mcp-secure",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Security-hardened Chrome DevTools Protocol MCP server with post-quantum encryption and secure credential vault",
   "type": "module",
   "main": "dist/index.js",

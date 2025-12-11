@@ -15,6 +15,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { log, audit } from "./logger.js";
+import { mkdirSecure, writeFileSecure, PERMISSION_MODES } from "./file-permissions.js";
 
 /**
  * MCP Auth configuration
@@ -158,14 +159,8 @@ export class MCPAuthenticator {
   private async saveTokenHash(): Promise<void> {
     if (!this.tokenHash) return;
 
-    const dir = path.dirname(this.config.tokenFile);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    }
-
-    fs.writeFileSync(this.config.tokenFile, this.tokenHash, {
-      mode: 0o600, // Owner read/write only
-    });
+    mkdirSecure(path.dirname(this.config.tokenFile), PERMISSION_MODES.OWNER_FULL);
+    writeFileSecure(this.config.tokenFile, this.tokenHash, PERMISSION_MODES.OWNER_READ_WRITE);
   }
 
   /**

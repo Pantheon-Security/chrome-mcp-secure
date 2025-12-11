@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { mkdirSecure, PERMISSION_MODES } from './file-permissions.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -163,9 +164,7 @@ class AuditLogger {
   }
 
   private ensureLogDir(): void {
-    if (!fs.existsSync(this.logDir)) {
-      fs.mkdirSync(this.logDir, { recursive: true });
-    }
+    mkdirSecure(this.logDir, PERMISSION_MODES.OWNER_FULL);
   }
 
   private getLogFile(): string {

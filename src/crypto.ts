@@ -26,6 +26,7 @@ import path from "path";
 import os from "os";
 import { ml_kem768 } from "@noble/post-quantum/ml-kem";
 import { log, audit } from "./logger.js";
+import { mkdirSecure, writeFileSecure, PERMISSION_MODES } from "./file-permissions.js";
 
 /**
  * Encryption configuration
@@ -507,14 +508,8 @@ export class SecureStorage {
 
     const encrypted = encryptClassical(keysJson, this.classicalKey);
 
-    const dir = path.dirname(this.keyStorePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    }
-
-    fs.writeFileSync(this.keyStorePath, JSON.stringify(encrypted, null, 2), {
-      mode: 0o600,
-    });
+    mkdirSecure(path.dirname(this.keyStorePath), PERMISSION_MODES.OWNER_FULL);
+    writeFileSecure(this.keyStorePath, JSON.stringify(encrypted, null, 2), PERMISSION_MODES.OWNER_READ_WRITE);
   }
 
   /**
@@ -524,16 +519,13 @@ export class SecureStorage {
     await this.initialize();
 
     const dataStr = typeof data === "string" ? data : JSON.stringify(data, null, 2);
-    const dir = path.dirname(filePath);
 
     // Ensure directory exists
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    }
+    mkdirSecure(path.dirname(filePath), PERMISSION_MODES.OWNER_FULL);
 
     if (!this.config.enabled) {
       // Save unencrypted
-      fs.writeFileSync(filePath, dataStr, { mode: 0o600 });
+      writeFileSecure(filePath, dataStr, PERMISSION_MODES.OWNER_READ_WRITE);
       log.info(`📝 Saved (unencrypted): ${path.basename(filePath)}`);
       return;
     }
@@ -552,14 +544,12 @@ export class SecureStorage {
       log.info(`🔐 Saved with ChaCha20-Poly1305: ${path.basename(encryptedPath)}`);
     } else {
       // Save unencrypted as fallback
-      fs.writeFileSync(filePath, dataStr, { mode: 0o600 });
+      writeFileSecure(filePath, dataStr, PERMISSION_MODES.OWNER_READ_WRITE);
       log.warn(`Saved unencrypted (no keys): ${path.basename(filePath)}`);
       return;
     }
 
-    fs.writeFileSync(encryptedPath, JSON.stringify(encrypted, null, 2), {
-      mode: 0o600,
-    });
+    writeFileSecure(encryptedPath, JSON.stringify(encrypted, null, 2), PERMISSION_MODES.OWNER_READ_WRITE);
 
     // Remove unencrypted and other encrypted versions if they exist
     const extensions = ["", ".enc", ".pqenc"];

@@ -5,6 +5,23 @@ All notable changes to Chrome MCP Secure will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2025-12-11
+
+### Fixed
+- **Cross-Platform File Permissions** - All file operations now use centralized `file-permissions.ts` utility
+  - Fixed 12 instances of insecure `fs.mkdirSync()` and `fs.writeFileSync()` calls
+  - Proper Windows ACL support via `icacls`
+  - Consistent 0o700 directory and 0o600 file permissions on Unix
+
+### Changed
+- `crypto.ts` - Now uses `mkdirSecure()` and `writeFileSecure()`
+- `credential-vault.ts` - Now uses `mkdirSecure()` and `writeFileSecure()`
+- `secure-memory.ts` - Deprecated internal functions, delegates to `file-permissions.ts`
+- `mcp-auth.ts` - Now uses `mkdirSecure()` and `writeFileSecure()`
+- `logger.ts` - Audit log directory now uses `mkdirSecure()`
+
+---
+
 ## [2.2.0] - 2025-12-11
 
 ### Added

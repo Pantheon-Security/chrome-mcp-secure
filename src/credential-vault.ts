@@ -16,6 +16,7 @@ import * as os from "os";
 import { SecureStorage, getSecureStorage } from "./crypto.js";
 import { SecureString, SecureCredential, maskSensitive } from "./secure-memory.js";
 import { log, audit } from "./logger.js";
+import { mkdirSecure, writeFileSecure, PERMISSION_MODES } from "./file-permissions.js";
 
 /**
  * Stored credential format
@@ -91,9 +92,7 @@ export class CredentialVault {
     log.info("Initializing credential vault...");
 
     // Ensure vault directory exists
-    if (!fs.existsSync(this.config.vaultPath)) {
-      fs.mkdirSync(this.config.vaultPath, { recursive: true, mode: 0o700 });
-    }
+    mkdirSecure(this.config.vaultPath, PERMISSION_MODES.OWNER_FULL);
 
     // Initialize secure storage
     await this.storage.initialize();
@@ -385,7 +384,7 @@ export class CredentialVault {
       const data = JSON.parse(encrypted);
       const ext = data.pqAlgorithm ? ".pqenc" : ".enc";
 
-      fs.writeFileSync(tempPath + ext, encrypted, { mode: 0o600 });
+      writeFileSecure(tempPath + ext, encrypted, PERMISSION_MODES.OWNER_READ_WRITE);
 
       const decrypted = await this.storage.load(tempPath);
 

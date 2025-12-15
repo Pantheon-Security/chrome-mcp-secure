@@ -4,7 +4,7 @@
 
 **Chrome DevTools Protocol automation for AI agents - with enterprise-grade security**
 
-[![Version](https://img.shields.io/badge/Version-2.2.1-brightgreen.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-2.3.0-brightgreen.svg)](./CHANGELOG.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-2025-green.svg)](https://modelcontextprotocol.io/)
 [![Security](https://img.shields.io/badge/Security-Hardened-red.svg)](./SECURITY.md)

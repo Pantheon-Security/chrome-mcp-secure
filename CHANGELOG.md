@@ -5,6 +5,77 @@ All notable changes to Chrome MCP Secure will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-12-15
+
+### Added
+
+#### Phase 1: Logging & Audit Foundation (Compliance Roadmap)
+
+New `src/compliance/` module with enterprise-grade audit logging:
+
+- **Compliance Audit Logger** (`src/compliance/audit-logger.ts`)
+  - Structured audit events with full attribution (actor, resource, outcome)
+  - Hash-chained integrity for tamper detection
+  - Event categories: auth, access, modify, delete, export, admin, security, error, system
+  - Severity levels: info, low, medium, high, critical
+  - Compliance tagging (SOC2, GDPR, PCI-DSS, ISO27001)
+
+- **CEF Formatter** (`src/compliance/formats/cef.ts`)
+  - Common Event Format for SIEM integration
+  - Splunk, ArcSight, QRadar, LogRhythm compatible
+  - RFC-compliant CEF output
+
+- **JSON-LD Formatter** (`src/compliance/formats/json-ld.ts`)
+  - Linked Data format for compliance tools
+  - schema.org vocabulary
+  - Machine-readable audit trails
+
+- **Log Shipper** (`src/compliance/log-shipper.ts`)
+  - Webhook shipping (HTTPS POST)
+  - Syslog support (RFC 3164 / RFC 5424, UDP/TCP)
+  - S3/GCS cloud storage (placeholder)
+  - Batching and retry with exponential backoff
+
+- **Retention Manager** (`src/compliance/retention-manager.ts`)
+  - Log rotation (daily/weekly/size-based)
+  - Compression of old logs (gzip)
+  - Secure deletion with cryptographic certificates
+  - Configurable retention periods (default: 365 days)
+  - Archive support
+
+- **Log Verifier** (`src/compliance/log-verifier.ts`)
+  - Hash chain integrity verification
+  - Sequence continuity checking
+  - Gap detection
+  - Tampering detection
+  - Verification reports and certificates
+
+### Environment Variables (New)
+
+#### Audit Logging
+- `CHROME_MCP_AUDIT_ENABLED` - Enable/disable audit logging (default: true)
+- `CHROME_MCP_AUDIT_FORMAT` - Output format: jsonl, cef, json-ld (default: jsonl)
+- `CHROME_MCP_AUDIT_DIR` - Audit log directory
+- `CHROME_MCP_AUDIT_MIN_SEVERITY` - Minimum severity to log
+- `CHROME_MCP_AUDIT_HASH_CHAIN` - Enable hash chaining (default: true)
+
+#### Log Shipping
+- `CHROME_MCP_LOG_SHIPPING` - Enable log shipping (default: false)
+- `CHROME_MCP_LOG_DESTINATION` - Destination: webhook, syslog, s3, gcs
+- `CHROME_MCP_WEBHOOK_URL` - Webhook endpoint URL
+- `CHROME_MCP_SYSLOG_HOST` - Syslog host (default: localhost)
+- `CHROME_MCP_SYSLOG_PORT` - Syslog port (default: 514)
+- `CHROME_MCP_SYSLOG_PROTOCOL` - UDP or TCP
+
+#### Retention
+- `CHROME_MCP_LOG_RETENTION_DAYS` - Retention period (default: 365)
+- `CHROME_MCP_LOG_ROTATION` - Rotation strategy: daily, weekly, size
+- `CHROME_MCP_LOG_COMPRESS` - Compress old logs (default: true)
+- `CHROME_MCP_LOG_COMPRESS_AFTER` - Days before compression (default: 7)
+- `CHROME_MCP_SECURE_DELETE` - Secure wipe before deletion (default: true)
+
+---
+
 ## [2.2.1] - 2025-12-11
 
 ### Fixed

@@ -5,6 +5,39 @@ All notable changes to Chrome MCP Secure will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-12-16
+
+### Added
+
+#### Enterprise Compliance Logging
+- **Compliance Logger** (`src/compliance-logger.ts`)
+  - CEF (Common Event Format) output for SIEM integration (Splunk, ArcSight, QRadar)
+  - RFC 5424 Syslog format with structured data
+  - OWASP-compliant event categories (authentication, authorization, audit, security, etc.)
+  - Correlation ID support for request tracing
+  - Configurable severity levels (CEF 0-10 scale)
+  - Automatic sensitive data masking
+  - File rotation with configurable size limits
+  - Remote syslog support (UDP)
+
+### Changed
+- All tool handlers now log to both audit log and compliance log
+- Rate limit events include compliance logging
+
+### Environment Variables (New)
+
+#### Compliance Logging
+- `COMPLIANCE_LOG_FORMAT` - Output format: `jsonl`, `cef`, `syslog`, `json` (default: jsonl)
+- `COMPLIANCE_LOG_DIR` - Log output directory (default: ./logs/compliance)
+- `COMPLIANCE_MIN_SEVERITY` - Minimum severity to log (0-10, default: 0)
+- `SYSLOG_HOST` - Remote syslog server hostname
+- `SYSLOG_PORT` - Remote syslog server port (default: 514)
+- `CEF_DEVICE_VENDOR` - CEF device vendor field
+- `CEF_DEVICE_PRODUCT` - CEF device product field
+- `CEF_DEVICE_VERSION` - CEF device version field
+
+---
+
 ## [2.2.1] - 2025-12-11
 
 ### Fixed

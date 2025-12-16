@@ -1,0 +1,130 @@
+# Chrome MCP Secure - Enterprise Docker Deployment
+# Usage: docker-compose up -d
+
+version: '3.8'
+
+services:
+  chrome-mcp:
+    build: .
+    container_name: chrome-mcp-secure
+    restart: unless-stopped
+    user: "1000:1000"
+
+    environment:
+      # Chrome connection (connects to chrome service)
+      - CHROME_HOST=chrome
+      - CHROME_PORT=9222
+
+      # Logging
+      - LOG_LEVEL=info
+      - AUDIT_LOGGING=true
+      - AUDIT_LOG_DIR=/app/logs
+
+      # Compliance logging
+      - COMPLIANCE_LOG_FORMAT=${COMPLIANCE_LOG_FORMAT:-jsonl}
+      - COMPLIANCE_LOG_DIR=/app/logs/compliance
+      - COMPLIANCE_MIN_SEVERITY=${COMPLIANCE_MIN_SEVERITY:-0}
+
+      # Syslog forwarding (optional)
+      - SYSLOG_HOST=${SYSLOG_HOST:-}
+      - SYSLOG_PORT=${SYSLOG_PORT:-514}
+
+      # CEF configuration
+      - CEF_DEVICE_VENDOR=${CEF_DEVICE_VENDOR:-Pantheon-Security}
+      - CEF_DEVICE_PRODUCT=${CEF_DEVICE_PRODUCT:-Chrome-MCP-Secure}
+      - CEF_DEVICE_VERSION=${CEF_DEVICE_VERSION:-2.3.0}
+
+      # Encryption (REQUIRED for production)
+      - CHROME_MCP_ENCRYPTION_KEY=${CHROME_MCP_ENCRYPTION_KEY:-}
+      - CHROME_MCP_CREDENTIAL_TTL=${CHROME_MCP_CREDENTIAL_TTL:-300000}
+
+      # Security features
+      - CHROME_MCP_SECRETS_SCANNING=true
+      - CHROME_MCP_SECRETS_REDACT=true
+      - CHROME_MCP_RESPONSE_VALIDATION=true
+      - CHROME_MCP_BLOCK_PROMPT_INJECTION=true
+      - CHROME_MCP_SESSION_MANAGEMENT=true
+      - CHROME_MCP_CERT_PINNING=true
+      - CHROME_MCP_SCREENSHOT_REDACTION=true
+
+    volumes:
+      # Persistent logs
+      - ./logs:/app/logs
+      # Persistent credentials vault
+      - ./credentials:/home/node/.chrome-mcp/credentials
+
+    depends_on:
+      chrome:
+        condition: service_healthy
+
+    networks:
+      - chrome-network
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://chrome:9222/json', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  chrome:
+    image: zenika/alpine-chrome:latest
+    container_name: chrome-headless
+    restart: unless-stopped
+
+    command:
+      - "--no-sandbox"
+      - "--disable-gpu"
+      - "--disable-dev-shm-usage"
+      - "--remote-debugging-address=0.0.0.0"
+      - "--remote-debugging-port=9222"
+      - "--disable-background-networking"
+      - "--disable-default-apps"
+      - "--disable-extensions"
+      - "--disable-sync"
+      - "--disable-translate"
+      - "--headless"
+      - "--hide-scrollbars"
+      - "--metrics-recording-only"
+      - "--mute-audio"
+      - "--no-first-run"
+      - "--safebrowsing-disable-auto-update"
+
+    # Security: run as non-root
+    user: "1000:1000"
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    networks:
+      - chrome-network
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9222/json"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  chrome-network:
+    driver: bridge
+
+# For production with external log aggregation:
+#
+# services:
+#   chrome-mcp:
+#     logging:
+#       driver: syslog
+#       options:
+#         syslog-address: "udp://your-siem:514"
+#         tag: "chrome-mcp-secure"

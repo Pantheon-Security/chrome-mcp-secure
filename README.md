@@ -2,34 +2,91 @@
 
 # Chrome MCP Server (Security Hardened)
 
-**Chrome DevTools Protocol automation for AI agents - with enterprise-grade security**
+**Enterprise-grade Chrome automation for AI agents with compliance-ready logging**
 
-[![Version](https://img.shields.io/badge/Version-2.2.1-brightgreen.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-2.3.0-brightgreen.svg)](./CHANGELOG.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-2025-green.svg)](https://modelcontextprotocol.io/)
 [![Security](https://img.shields.io/badge/Security-Hardened-red.svg)](./SECURITY.md)
 [![Post-Quantum](https://img.shields.io/badge/Encryption-Post--Quantum-purple.svg)](./SECURITY.md#post-quantum-encryption)
+[![SOC2](https://img.shields.io/badge/SOC_2-Compatible-blue.svg)](#compliance-logging)
+[![CEF](https://img.shields.io/badge/CEF-SIEM_Ready-orange.svg)](#compliance-logging)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-[Real-World Results](#real-world-results) • [Security Features](#security-features) • [Installation](#installation) • [Quick Start](#quick-start) • [Tools](#available-tools) • [Documentation](./SECURITY.md)
-
-`#anthropic` `#mcp` `#claude` `#mcp-server` `#ai-agent` `#chrome` `#browser-automation` `#devtools` `#security` `#post-quantum` `#encryption` `#credential-vault` `#pantheon-security`
+[Enterprise Features](#enterprise-ready) • [Compliance Logging](#compliance-logging) • [Security Features](#security-features) • [Quick Start](#quick-start) • [Docker Deploy](#docker-deployment)
 
 </div>
 
-> **Security-hardened fork** of [lxe/chrome-mcp](https://github.com/lxe/chrome-mcp)
-> Maintained by [Pantheon Security](https://github.com/Pantheon-Security)
+---
+
+## Enterprise Ready
+
+**Built for corporate environments** where security, compliance, and auditability are non-negotiable.
+
+| Requirement | Solution |
+|-------------|----------|
+| **Audit Trails** | Hash-chained audit logs with tamper detection |
+| **SIEM Integration** | CEF (Splunk, ArcSight, QRadar) + Syslog (RFC 5424) |
+| **Credential Security** | Post-quantum encryption (ML-KEM-768 + ChaCha20-Poly1305) |
+| **Data Protection** | Auto-redaction of PII in screenshots and logs |
+| **Session Control** | Configurable timeouts, auto-expiry, inactivity lockout |
+| **Access Control** | Token-based authentication with brute-force protection |
+| **Compliance Logging** | OWASP-compliant event categories, correlation IDs |
+
+### Compliance Standards Support
+
+| Standard | Coverage |
+|----------|----------|
+| **SOC 2 Type II** | Audit logging, access controls, encryption at rest |
+| **GDPR** | Data minimization, right to erasure, audit trails |
+| **PCI DSS** | Credential protection, access logging, encryption |
+| **HIPAA** | Audit controls, access management, encryption |
 
 ---
 
-## Why This Fork?
+## Compliance Logging
 
-The original Chrome MCP by [lxe](https://github.com/lxe/chrome-mcp) is excellent for browser automation - but MCP servers handling credentials need protection:
-- **Login credentials** stored for automated logins
-- **Session cookies** persisted on disk
-- **Browsing history** that may contain sensitive URLs
+**SIEM-ready logging** in industry-standard formats. Every tool execution, credential access, and security event is logged.
 
-This fork adds **security hardening layers** to protect that data, using the same patterns from our [notebooklm-mcp-secure](https://github.com/Pantheon-Security/notebooklm-mcp-secure).
+### Output Formats
+
+| Format | Use Case | Example |
+|--------|----------|---------|
+| **CEF** | Splunk, ArcSight, QRadar | `CEF:0\|Pantheon-Security\|Chrome-MCP-Secure\|2.3.0\|...` |
+| **Syslog** | Centralized logging (RFC 5424) | `<134>1 2025-12-16T10:30:00Z ...` |
+| **JSONL** | Elastic, custom pipelines | `{"timestamp":"...","category":"audit",...}` |
+
+### Event Categories (OWASP-Compliant)
+
+- `authentication` - Login attempts, session creation
+- `authorization` - Access control decisions
+- `credential` - Vault operations (store, retrieve, delete)
+- `audit` - Tool executions with timing
+- `security` - Rate limits, injection attempts, anomalies
+- `data_access` - Sensitive data retrieval
+
+### Quick Configuration
+
+```bash
+# Enable CEF logging for Splunk
+COMPLIANCE_LOG_FORMAT=cef
+COMPLIANCE_LOG_DIR=./logs/compliance
+
+# Forward to remote syslog
+SYSLOG_HOST=siem.company.com
+SYSLOG_PORT=514
+```
+
+### Example CEF Output
+
+```
+CEF:0|Pantheon-Security|Chrome-MCP-Secure|2.3.0|audit:tool:navigate|tool:navigate|3|rt=1702732800000 outcome=success msg=Tool navigate executed: success request=https://internal.company.com cn1=1702732800-abc123 cn1Label=correlationId
+```
+
+---
+
+> **Security-hardened fork** of [lxe/chrome-mcp](https://github.com/lxe/chrome-mcp)
+> Maintained by [Pantheon Security](https://github.com/Pantheon-Security)
 
 ---
 
@@ -100,6 +157,62 @@ Even if one algorithm is broken, the other remains secure.
 | **2035+** | Current RSA/ECC encryption potentially broken |
 
 Your browser credentials stored today could be decrypted in 10 years. This fork protects against that future threat **now**.
+
+---
+
+## Docker Deployment
+
+**Recommended for production environments.**
+
+```bash
+# Clone and start
+git clone https://github.com/Pantheon-Security/chrome-mcp-secure.git
+cd chrome-mcp-secure
+docker-compose up -d
+```
+
+### Production Configuration
+
+```bash
+# Copy example config
+cp env.example .env
+
+# Edit for your environment
+vim .env
+
+# Start with custom config
+docker-compose up -d
+```
+
+### Key Environment Variables
+
+```bash
+# SIEM Integration
+COMPLIANCE_LOG_FORMAT=cef              # cef, syslog, jsonl, json
+SYSLOG_HOST=siem.company.com           # Remote syslog server
+SYSLOG_PORT=514
+
+# Encryption (REQUIRED for production)
+CHROME_MCP_ENCRYPTION_KEY=$(openssl rand -base64 32)
+
+# Session Security
+CHROME_MCP_SESSION_MAX_LIFETIME=28800000   # 8 hours
+CHROME_MCP_SESSION_INACTIVITY=1800000      # 30 minutes
+```
+
+### Log Collection
+
+Logs are written to `./logs/compliance/` in your chosen format:
+
+```bash
+# View compliance logs
+tail -f logs/compliance/compliance-2025-12-16.cef
+
+# Forward to Splunk via syslog
+docker-compose logs chrome-mcp | nc -u siem.company.com 514
+```
+
+See [env.example](./env.example) for all configuration options.
 
 ---
 

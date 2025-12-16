@@ -16,6 +16,7 @@ import {
   SecurityError,
 } from './security.js';
 import { log, audit } from './logger.js';
+import { complianceLog, generateCorrelationId, setCorrelationId, clearCorrelationId } from './compliance-logger.js';
 import { ElementError, NavigationError, formatError, RateLimitError } from './errors.js';
 import {
   credentialToolSchemas,
@@ -51,8 +52,27 @@ function checkRateLimit(toolName: string): void {
   const result = rateLimiter.isAllowed(toolName);
   if (!result.allowed) {
     audit.security('rate_limit_exceeded', false, { tool: toolName, resetMs: result.resetMs });
+    complianceLog.security('rate_limit_exceeded', 5, { source: toolName, blocked: true });
     throw new RateLimitError(result.resetMs);
   }
+}
+
+// Helper to log tool execution to both audit and compliance logs
+function logToolExecution(
+  toolName: string,
+  success: boolean,
+  durationMs: number,
+  details?: Record<string, unknown>
+): void {
+  // Log to existing audit system
+  audit.tool(toolName, success, durationMs, details);
+
+  // Log to compliance system (CEF/Syslog compatible)
+  complianceLog.tool(toolName, success ? 'success' : 'failure', {
+    durationMs,
+    ...details,
+    error: details?.error as string | undefined
+  });
 }
 
 // Tool definitions
@@ -70,11 +90,11 @@ export const toolDefinitions = {
         const health = await client.checkHealth();
 
         if (!health.ok) {
-          audit.tool('health', false, Date.now() - startTime, { error: health.error });
+          logToolExecution('health', false, Date.now() - startTime, { error: health.error });
           return textResult(`Chrome not available: ${health.error}`, true);
         }
 
-        audit.tool('health', true, Date.now() - startTime, { tabs: health.tabs });
+        logToolExecution('health', true, Date.now() - startTime, { tabs: health.tabs });
         return textResult(
           `Chrome is running\n` +
           `Version: ${health.version}\n` +
@@ -82,7 +102,7 @@ export const toolDefinitions = {
           `Connected: ${client.isConnected}`
         );
       } catch (error) {
-        audit.tool('health', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('health', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Health check failed: ${formatError(error)}`, true);
       }
     },
@@ -110,10 +130,10 @@ export const toolDefinitions = {
         // Wait for page load
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        audit.tool('navigate', true, Date.now() - startTime, { url });
+        logToolExecution('navigate', true, Date.now() - startTime, { url });
         return textResult(`Successfully navigated to ${url}`);
       } catch (error) {
-        audit.tool('navigate', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('navigate', false, Date.now() - startTime, { error: formatError(error) });
         if (error instanceof SecurityError) {
           return textResult(`Security error: ${error.message}`, true);
         }
@@ -139,10 +159,10 @@ export const toolDefinitions = {
           `${i + 1}. [${tab.id}] ${tab.title}\n   ${tab.url}`
         ).join('\n\n');
 
-        audit.tool('get_tabs', true, Date.now() - startTime, { count: tabs.length });
+        logToolExecution('get_tabs', true, Date.now() - startTime, { count: tabs.length });
         return textResult(`Chrome tabs (${tabs.length}):\n\n${tabList}`);
       } catch (error) {
-        audit.tool('get_tabs', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('get_tabs', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Failed to get tabs: ${formatError(error)}`, true);
       }
     },
@@ -226,7 +246,7 @@ export const toolDefinitions = {
           clickCount: 1,
         });
 
-        audit.tool('click_element', true, Date.now() - startTime, {
+        logToolExecution('click_element', true, Date.now() - startTime, {
           selector,
           element: elementInfo.tag,
         });
@@ -236,7 +256,7 @@ export const toolDefinitions = {
           (elementInfo.text ? ` with text: "${elementInfo.text}"` : '')
         );
       } catch (error) {
-        audit.tool('click_element', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('click_element', false, Date.now() - startTime, { error: formatError(error) });
         if (error instanceof SecurityError || error instanceof ElementError) {
           return textResult(error.message, true);
         }
@@ -280,10 +300,10 @@ export const toolDefinitions = {
           clickCount: 1,
         });
 
-        audit.tool('click', true, Date.now() - startTime, { x, y });
+        logToolExecution('click', true, Date.now() - startTime, { x, y });
         return textResult(`Clicked at coordinates (${x}, ${y})`);
       } catch (error) {
-        audit.tool('click', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('click', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Click failed: ${formatError(error)}`, true);
       }
     },
@@ -305,10 +325,10 @@ export const toolDefinitions = {
         await client.enableDomain('Input');
         await client.send('Input.insertText', { text });
 
-        audit.tool('type', true, Date.now() - startTime, { length: text.length });
+        logToolExecution('type', true, Date.now() - startTime, { length: text.length });
         return textResult(`Typed ${text.length} characters`);
       } catch (error) {
-        audit.tool('type', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('type', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Type failed: ${formatError(error)}`, true);
       }
     },
@@ -338,10 +358,10 @@ export const toolDefinitions = {
           throw new ElementError('Element not found', selector);
         }
 
-        audit.tool('get_text', true, Date.now() - startTime, { selector });
+        logToolExecution('get_text', true, Date.now() - startTime, { selector });
         return textResult(`Text content:\n${text.trim()}`);
       } catch (error) {
-        audit.tool('get_text', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('get_text', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Get text failed: ${formatError(error)}`, true);
       }
     },
@@ -401,13 +421,13 @@ export const toolDefinitions = {
           output += `  ${i + 1}. <${el.tag}${type}>${id}${text}\n`;
         });
 
-        audit.tool('get_page_info', true, Date.now() - startTime, {
+        logToolExecution('get_page_info', true, Date.now() - startTime, {
           elements: pageInfo.elements.length,
         });
 
         return textResult(output);
       } catch (error) {
-        audit.tool('get_page_info', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('get_page_info', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Get page info failed: ${formatError(error)}`, true);
       }
     },
@@ -454,10 +474,10 @@ export const toolDefinitions = {
           `Document: ${state.document.width}x${state.document.height}`,
         ].join('\n');
 
-        audit.tool('get_page_state', true, Date.now() - startTime);
+        logToolExecution('get_page_state', true, Date.now() - startTime);
         return textResult(output);
       } catch (error) {
-        audit.tool('get_page_state', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('get_page_state', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Get page state failed: ${formatError(error)}`, true);
       }
     },
@@ -482,10 +502,10 @@ export const toolDefinitions = {
 
         await client.evaluate(`window.scrollTo(${x}, ${y})`);
 
-        audit.tool('scroll', true, Date.now() - startTime, { x, y });
+        logToolExecution('scroll', true, Date.now() - startTime, { x, y });
         return textResult(`Scrolled to (${x}, ${y})`);
       } catch (error) {
-        audit.tool('scroll', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('scroll', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Scroll failed: ${formatError(error)}`, true);
       }
     },
@@ -517,7 +537,7 @@ export const toolDefinitions = {
 
         const result = await client.send<{ data: string }>('Page.captureScreenshot', params);
 
-        audit.tool('screenshot', true, Date.now() - startTime, { fullPage: args.fullPage });
+        logToolExecution('screenshot', true, Date.now() - startTime, { fullPage: args.fullPage });
 
         return {
           content: [
@@ -529,7 +549,7 @@ export const toolDefinitions = {
           ],
         };
       } catch (error) {
-        audit.tool('screenshot', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('screenshot', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Screenshot failed: ${formatError(error)}`, true);
       }
     },
@@ -574,14 +594,14 @@ export const toolDefinitions = {
         `, { awaitPromise: true });
 
         if (!found) {
-          audit.tool('wait_for_element', false, Date.now() - startTime, { selector, timeout });
+          logToolExecution('wait_for_element', false, Date.now() - startTime, { selector, timeout });
           return textResult(`Element not found within ${timeout}ms: ${selector}`, true);
         }
 
-        audit.tool('wait_for_element', true, Date.now() - startTime, { selector });
+        logToolExecution('wait_for_element', true, Date.now() - startTime, { selector });
         return textResult(`Element found: ${selector}`);
       } catch (error) {
-        audit.tool('wait_for_element', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('wait_for_element', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Wait failed: ${formatError(error)}`, true);
       }
     },
@@ -606,7 +626,7 @@ export const toolDefinitions = {
 
         const result = await client.evaluate(expression);
 
-        audit.tool('evaluate', true, Date.now() - startTime, {
+        logToolExecution('evaluate', true, Date.now() - startTime, {
           expressionLength: expression.length,
         });
 
@@ -618,7 +638,7 @@ export const toolDefinitions = {
 
         return textResult(`Result:\n${resultStr}`);
       } catch (error) {
-        audit.tool('evaluate', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('evaluate', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Evaluate failed: ${formatError(error)}`, true);
       }
     },
@@ -670,10 +690,10 @@ export const toolDefinitions = {
           })()
         `);
 
-        audit.tool('fill', true, Date.now() - startTime, { selector, valueLength: value.length });
+        logToolExecution('fill', true, Date.now() - startTime, { selector, valueLength: value.length });
         return textResult(`Filled field ${selector} with ${value.length} characters`);
       } catch (error) {
-        audit.tool('fill', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('fill', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Fill failed: ${formatError(error)}`, true);
       }
     },
@@ -733,10 +753,10 @@ export const toolDefinitions = {
           })()
         `);
 
-        audit.tool('bypass_cert_and_navigate', true, Date.now() - startTime, { url });
+        logToolExecution('bypass_cert_and_navigate', true, Date.now() - startTime, { url });
         return textResult(`Navigation with cert bypass: ${bypassResult}`);
       } catch (error) {
-        audit.tool('bypass_cert_and_navigate', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('bypass_cert_and_navigate', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Navigation failed: ${formatError(error)}`, true);
       }
     },
@@ -775,7 +795,7 @@ export const toolDefinitions = {
       try {
         const result = await handleStoreCredential(args);
 
-        audit.tool('store_credential', true, Date.now() - startTime, {
+        logToolExecution('store_credential', true, Date.now() - startTime, {
           name: args.name,
           type: args.type,
           domain: args.domain,
@@ -783,7 +803,7 @@ export const toolDefinitions = {
 
         return textResult(result.message);
       } catch (error) {
-        audit.tool('store_credential', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('store_credential', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Store credential failed: ${formatError(error)}`, true);
       }
     },
@@ -821,10 +841,10 @@ export const toolDefinitions = {
           output += '\n';
         }
 
-        audit.tool('list_credentials', true, Date.now() - startTime, { count: credentials.length });
+        logToolExecution('list_credentials', true, Date.now() - startTime, { count: credentials.length });
         return textResult(output);
       } catch (error) {
-        audit.tool('list_credentials', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('list_credentials', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`List credentials failed: ${formatError(error)}`, true);
       }
     },
@@ -859,10 +879,10 @@ export const toolDefinitions = {
         output += `Updated: ${credential.updatedAt}\n`;
         if (credential.lastUsed) output += `Last Used: ${credential.lastUsed}\n`;
 
-        audit.tool('get_credential', true, Date.now() - startTime, { id: maskSensitive(args.id) });
+        logToolExecution('get_credential', true, Date.now() - startTime, { id: maskSensitive(args.id) });
         return textResult(output);
       } catch (error) {
-        audit.tool('get_credential', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('get_credential', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Get credential failed: ${formatError(error)}`, true);
       }
     },
@@ -881,13 +901,13 @@ export const toolDefinitions = {
       try {
         const result = await handleDeleteCredential(args);
 
-        audit.tool('delete_credential', result.success, Date.now() - startTime, {
+        logToolExecution('delete_credential', result.success, Date.now() - startTime, {
           id: maskSensitive(args.id),
         });
 
         return textResult(result.message, !result.success);
       } catch (error) {
-        audit.tool('delete_credential', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('delete_credential', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Delete credential failed: ${formatError(error)}`, true);
       }
     },
@@ -922,13 +942,13 @@ export const toolDefinitions = {
       try {
         const result = await handleUpdateCredential(args);
 
-        audit.tool('update_credential', result.success, Date.now() - startTime, {
+        logToolExecution('update_credential', result.success, Date.now() - startTime, {
           id: maskSensitive(args.id),
         });
 
         return textResult(result.message, !result.success);
       } catch (error) {
-        audit.tool('update_credential', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('update_credential', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Update credential failed: ${formatError(error)}`, true);
       }
     },
@@ -967,13 +987,13 @@ export const toolDefinitions = {
           skipSubmit: args.skipSubmit ?? false,
         }, client);
 
-        audit.tool('secure_login', result.success, Date.now() - startTime, {
+        logToolExecution('secure_login', result.success, Date.now() - startTime, {
           credentialId: maskSensitive(args.credentialId),
         });
 
         return textResult(result.message, !result.success);
       } catch (error) {
-        audit.tool('secure_login', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('secure_login', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Secure login failed: ${formatError(error)}`, true);
       }
     },
@@ -1000,10 +1020,10 @@ export const toolDefinitions = {
         output += `  PQ Algorithm: ${status.encryption.pqAlgorithm || 'N/A'}\n`;
         output += `  Key Source: ${status.encryption.keySource}\n`;
 
-        audit.tool('get_vault_status', true, Date.now() - startTime);
+        logToolExecution('get_vault_status', true, Date.now() - startTime);
         return textResult(output);
       } catch (error) {
-        audit.tool('get_vault_status', false, Date.now() - startTime, { error: formatError(error) });
+        logToolExecution('get_vault_status', false, Date.now() - startTime, { error: formatError(error) });
         return textResult(`Get vault status failed: ${formatError(error)}`, true);
       }
     },

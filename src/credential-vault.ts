@@ -63,12 +63,43 @@ interface VaultConfig {
  * Credential Vault class
  * Manages secure storage and retrieval of login credentials
  */
+/**
+ * Security error for credential operations
+ */
+export class CredentialSecurityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CredentialSecurityError";
+  }
+}
+
 export class CredentialVault {
   private config: VaultConfig;
   private storage: SecureStorage;
   private activeCredentials: Map<string, ActiveCredential> = new Map();
   private cleanupTimers: Map<string, NodeJS.Timeout> = new Map();
   private initialized: boolean = false;
+
+  /**
+   * Validate credential ID to prevent path traversal attacks
+   */
+  private validateCredentialId(id: string): string {
+    if (!id || typeof id !== "string") {
+      throw new CredentialSecurityError("Credential ID is required");
+    }
+
+    // Block path traversal attempts
+    if (id.includes("..") || id.includes("/") || id.includes("\\")) {
+      throw new CredentialSecurityError("Invalid credential ID: path traversal detected");
+    }
+
+    // Only allow expected format: cred_timestamp_random
+    if (!/^cred_\d+_[a-z0-9]+$/i.test(id)) {
+      throw new CredentialSecurityError("Invalid credential ID format");
+    }
+
+    return id;
+  }
 
   constructor(config?: Partial<VaultConfig>) {
     const configDir = process.env.CHROME_MCP_CONFIG_DIR || path.join(os.homedir(), ".chrome-mcp");
@@ -159,26 +190,29 @@ export class CredentialVault {
   async get(id: string): Promise<ActiveCredential | null> {
     await this.initialize();
 
+    // Validate ID to prevent path traversal
+    const validatedId = this.validateCredentialId(id);
+
     // Check if already active in memory
-    if (this.activeCredentials.has(id)) {
-      const active = this.activeCredentials.get(id)!;
+    if (this.activeCredentials.has(validatedId)) {
+      const active = this.activeCredentials.get(validatedId)!;
 
       // Check if credentials are still valid
       if (active.password && !active.password.isWiped()) {
-        this.refreshTTL(id);
+        this.refreshTTL(validatedId);
         return active;
       }
 
       // Credentials expired, remove from active
-      this.cleanupCredential(id);
+      this.cleanupCredential(validatedId);
     }
 
     // Load from storage
-    const credPath = path.join(this.config.vaultPath, `${id}.json`);
+    const credPath = path.join(this.config.vaultPath, `${validatedId}.json`);
     const stored = await this.storage.loadJSON<StoredCredential>(credPath);
 
     if (!stored) {
-      log.warn(`Credential not found: ${maskSensitive(id)}`);
+      log.warn(`Credential not found: ${maskSensitive(validatedId)}`);
       return null;
     }
 
@@ -209,8 +243,8 @@ export class CredentialVault {
     }
 
     // Store in active credentials
-    this.activeCredentials.set(id, active);
-    this.scheduleCleanup(id);
+    this.activeCredentials.set(validatedId, active);
+    this.scheduleCleanup(validatedId);
 
     // Update last used
     stored.lastUsed = new Date().toISOString();
@@ -218,7 +252,7 @@ export class CredentialVault {
 
     log.info(`Retrieved credential: ${stored.name}`);
     await audit.security("credential_retrieved", "info", {
-      credentialId: maskSensitive(id),
+      credentialId: maskSensitive(validatedId),
       name: stored.name,
       type: stored.type,
     });
@@ -264,17 +298,20 @@ export class CredentialVault {
   async delete(id: string): Promise<boolean> {
     await this.initialize();
 
+    // Validate ID to prevent path traversal
+    const validatedId = this.validateCredentialId(id);
+
     // Clean up active credential
-    this.cleanupCredential(id);
+    this.cleanupCredential(validatedId);
 
     // Delete from storage
-    const credPath = path.join(this.config.vaultPath, `${id}.json`);
+    const credPath = path.join(this.config.vaultPath, `${validatedId}.json`);
     const deleted = await this.storage.delete(credPath);
 
     if (deleted) {
-      log.info(`Deleted credential: ${maskSensitive(id)}`);
+      log.info(`Deleted credential: ${maskSensitive(validatedId)}`);
       await audit.security("credential_deleted", "info", {
-        credentialId: maskSensitive(id),
+        credentialId: maskSensitive(validatedId),
       });
     }
 
@@ -290,11 +327,14 @@ export class CredentialVault {
   }>): Promise<boolean> {
     await this.initialize();
 
-    const credPath = path.join(this.config.vaultPath, `${id}.json`);
+    // Validate ID to prevent path traversal
+    const validatedId = this.validateCredentialId(id);
+
+    const credPath = path.join(this.config.vaultPath, `${validatedId}.json`);
     const stored = await this.storage.loadJSON<StoredCredential>(credPath);
 
     if (!stored) {
-      log.warn(`Cannot update: credential not found: ${maskSensitive(id)}`);
+      log.warn(`Cannot update: credential not found: ${maskSensitive(validatedId)}`);
       return false;
     }
 
@@ -319,14 +359,14 @@ export class CredentialVault {
     stored.updatedAt = new Date().toISOString();
 
     // Clear active credential to force reload
-    this.cleanupCredential(id);
+    this.cleanupCredential(validatedId);
 
     // Save updated credential
     await this.storage.save(credPath, stored);
 
     log.info(`Updated credential: ${stored.name}`);
     await audit.security("credential_updated", "info", {
-      credentialId: maskSensitive(id),
+      credentialId: maskSensitive(validatedId),
       name: stored.name,
       updatedFields: Object.keys(updates),
     });

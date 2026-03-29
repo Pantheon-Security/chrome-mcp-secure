@@ -216,6 +216,10 @@ See [env.example](./env.example) for all configuration options.
 
 ---
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/pantheon-security-chrome-mcp-secure).
+
 ## Installation
 
 ### One-Command Setup (Recommended)
